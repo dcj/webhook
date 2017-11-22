@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/adnanh/webhook/hook"
+	"github.com/dcj/webhook/hook"
 
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
@@ -245,7 +245,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 
 		contentType := r.Header.Get("Content-Type")
 
-		if strings.Contains(contentType, "json") {
+		if strings.Contains(matchedHook.IncomingPayloadContentType, "json") || strings.Contains(contentType, "json") {
 			decoder := json.NewDecoder(strings.NewReader(string(body)))
 			decoder.UseNumber()
 
@@ -254,7 +254,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Printf("[%s] error parsing JSON payload %+v\n", rid, err)
 			}
-		} else if strings.Contains(contentType, "form") {
+		} else strings.Contains(matchedHook.IncomingPayloadContentType, "form") || if strings.Contains(contentType, "form") {
 			fd, err := url.ParseQuery(string(body))
 			if err != nil {
 				log.Printf("[%s] error parsing form payload %+v\n", rid, err)
