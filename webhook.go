@@ -254,7 +254,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Printf("[%s] error parsing JSON payload %+v\n", rid, err)
 			}
-		} else strings.Contains(matchedHook.IncomingPayloadContentType, "form") || if strings.Contains(contentType, "form") {
+		} else if strings.Contains(matchedHook.IncomingPayloadContentType, "form") || strings.Contains(contentType, "form") {
 			fd, err := url.ParseQuery(string(body))
 			if err != nil {
 				log.Printf("[%s] error parsing form payload %+v\n", rid, err)
