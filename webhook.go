@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/adnanh/webhook/hook"
+	"github.com/dcj/webhook/hook"
 
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
@@ -30,6 +30,7 @@ var (
 	ip                 = flag.String("ip", "0.0.0.0", "ip the webhook should serve hooks on")
 	port               = flag.Int("port", 9000, "port the webhook should serve hooks on")
 	verbose            = flag.Bool("verbose", false, "show verbose output")
+	logFilePath        = flag.String("logfile", "webhook.log", "path to the file into which webhook will append verbose output, verbose option MUST be specified to use")
 	noPanic            = flag.Bool("nopanic", false, "do not panic if hooks cannot be loaded when webhook is not running in verbose mode")
 	hotReload          = flag.Bool("hotreload", false, "watch hooks file for changes and reload them automatically")
 	hooksURLPrefix     = flag.String("urlprefix", "hooks", "url prefix to use for served hooks (protocol://yourserver:port/PREFIX/:hook-id)")
@@ -40,6 +41,8 @@ var (
 
 	responseHeaders hook.ResponseHeaders
 	hooksFiles      hook.HooksFiles
+
+	logFile = os.Stdout
 
 	loadedHooksFromFiles = make(map[string]hook.Hooks)
 
@@ -86,6 +89,18 @@ func main() {
 
 	if !*verbose {
 		log.SetOutput(ioutil.Discard)
+	}
+
+	if *verbose {
+		if len(*logFilePath) != 0 {
+			logFile, err := os.OpenFile(*logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				log.SetOutput(os.Stdout)
+				log.Fatalf("Couldn't open -logfile %s", *logFilePath)
+			} else {
+				log.SetOutput(logFile)
+			}
+		} 
 	}
 
 	log.Println("version " + version + " starting")
@@ -157,7 +172,7 @@ func main() {
 
 	l.SetFormat("{{.Status}} | {{.Duration}} | {{.Hostname}} | {{.Method}} {{.Path}} \n")
 
-	standardLogger := log.New(os.Stdout, "[webhook] ", log.Ldate|log.Ltime)
+	standardLogger := log.New(logFile, "[webhook] ", log.Ldate|log.Ltime)
 
 	if !*verbose {
 		standardLogger.SetOutput(ioutil.Discard)
@@ -230,7 +245,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 
 		contentType := r.Header.Get("Content-Type")
 
-		if strings.Contains(contentType, "json") {
+		if strings.Contains(matchedHook.IncomingPayloadContentType, "json") || strings.Contains(contentType, "json") {
 			decoder := json.NewDecoder(strings.NewReader(string(body)))
 			decoder.UseNumber()
 
@@ -239,7 +254,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Printf("[%s] error parsing JSON payload %+v\n", rid, err)
 			}
-		} else if strings.Contains(contentType, "form") {
+		} else strings.Contains(matchedHook.IncomingPayloadContentType, "form") || if strings.Contains(contentType, "form") {
 			fd, err := url.ParseQuery(string(body))
 			if err != nil {
 				log.Printf("[%s] error parsing form payload %+v\n", rid, err)
